@@ -1,9 +1,5 @@
 import { DatabaseSync } from "node:sqlite";
-
-export interface CoverageEntry {
-  file: string;
-  line: number;
-}
+import type { CoverageEntry } from "../types.js";
 
 export interface TestRecord {
   testId: string;
