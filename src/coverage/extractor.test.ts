@@ -7,9 +7,9 @@ describe("istanbulToFileLines", () => {
       "/proj/src/a.ts": {
         path: "/proj/src/a.ts",
         statementMap: {
-          "0": { start: { line: 1 }, end: { line: 1 } },
-          "1": { start: { line: 3 }, end: { line: 5 } },
-          "2": { start: { line: 8 }, end: { line: 8 } },
+          "0": { start: { line: 1, column: 0 }, end: { line: 1, column: 5 } },
+          "1": { start: { line: 3, column: 0 }, end: { line: 5, column: 1 } },
+          "2": { start: { line: 8, column: 0 }, end: { line: 8, column: 9 } },
         },
         s: { "0": 1, "1": 2, "2": 0 },
       },
@@ -24,7 +24,9 @@ describe("istanbulToFileLines", () => {
     const data = {
       "/proj/src/a.ts": {
         path: "/proj/src/a.ts",
-        statementMap: { "0": { start: { line: 1 }, end: { line: 1 } } },
+        statementMap: {
+          "0": { start: { line: 1, column: 0 }, end: { line: 1, column: 5 } },
+        },
         s: { "0": 0 },
       },
     };
