@@ -9,3 +9,12 @@ export interface CoverageRecord {
   testId: string;
   entries: CoverageEntry[];
 }
+
+/**
+ * A test to run. `name` (a test's full name) selects a single test from coverage;
+ * when absent, the whole `file` runs — the fallback tiers work at file granularity.
+ */
+export interface SelectedTest {
+  file: string;
+  name?: string;
+}
