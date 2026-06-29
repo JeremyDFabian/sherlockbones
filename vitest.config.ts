@@ -8,5 +8,8 @@ export default defineConfig({
     // part of our own unit suite.
     exclude: ["node_modules", "dist", "fixtures"],
     passWithNoTests: true,
+    // Several integration tests spawn a nested `vitest` process. Running our test
+    // files sequentially keeps those nested runs from contending for CPU/temp.
+    fileParallelism: false,
   },
 });

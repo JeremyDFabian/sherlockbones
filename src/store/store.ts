@@ -218,6 +218,14 @@ export class Store {
       .run(test.testId, test.runner, test.path, lastSeen);
   }
 
+  /** Total number of tests known to the index (used as suite size for metrics). */
+  countTests(): number {
+    const row = this.db.prepare("SELECT COUNT(*) AS n FROM tests").get() as {
+      n: number;
+    };
+    return row.n;
+  }
+
   getTest(testId: string): StoredTest | undefined {
     const row = this.db
       .prepare("SELECT * FROM tests WHERE test_id = ?")
