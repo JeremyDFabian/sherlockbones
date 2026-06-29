@@ -1,0 +1,7 @@
+node_modules/
+dist/
+coverage/
+.sherlockbones/
+*.log
+*.tsbuildinfo
+.DS_Store

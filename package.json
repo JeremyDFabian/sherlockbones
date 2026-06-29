@@ -1,0 +1,40 @@
+{
+  "name": "sherlockbones",
+  "version": "0.1.0",
+  "description": "Run only the tests that cover the code you just changed — instantly.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Jeremy D. Fabian",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "bin": {
+    "bones": "dist/cli/index.js",
+    "sherlockbones": "dist/cli/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsx src/cli/index.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "commander": "^13.1.0",
+    "picocolors": "^1.1.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.30.0",
+    "@types/node": "^24.0.0",
+    "@vitest/coverage-v8": "^3.2.0",
+    "eslint": "^9.30.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.8.0",
+    "typescript-eslint": "^8.35.0",
+    "vitest": "^3.2.0"
+  }
+}
