@@ -28,6 +28,13 @@ describe("generateCaptureConfig", () => {
     const out = generateCaptureConfig(undefined, "/pkg/dist/coverage/setup.js");
     expect(out).toContain("const base = {}");
   });
+
+  it("resolves a callback-form user config before merging", () => {
+    // defineConfig((env) => ({...})) exports a function; mergeConfig rejects
+    // functions, so the generated config must call it first.
+    const out = generateCaptureConfig("/p/vitest.config.ts", "/pkg/dist/coverage/setup.js");
+    expect(out).toContain('typeof base === "function"');
+  });
 });
 
 describe("init", () => {
