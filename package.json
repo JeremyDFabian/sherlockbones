@@ -5,6 +5,25 @@
   "type": "module",
   "license": "MIT",
   "author": "Jeremy D. Fabian",
+  "keywords": [
+    "test",
+    "tests",
+    "vitest",
+    "coverage",
+    "test-impact-analysis",
+    "test-selection",
+    "claude-code",
+    "codex",
+    "ai-agents"
+  ],
+  "homepage": "https://github.com/JeremyDFabian/sherlockbones#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JeremyDFabian/sherlockbones.git"
+  },
+  "bugs": {
+    "url": "https://github.com/JeremyDFabian/sherlockbones/issues"
+  },
   "engines": {
     "node": ">=24.0.0"
   },
@@ -22,12 +41,17 @@
     "test:watch": "vitest",
     "bench": "tsx bench/sample-app.ts",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run lint && npm run typecheck && npm run build"
   },
   "dependencies": {
     "@jridgewell/trace-mapping": "^0.3.31",
     "commander": "^13.1.0",
     "picocolors": "^1.1.1"
+  },
+  "peerDependencies": {
+    "@vitest/coverage-istanbul": ">=3.0.0",
+    "vitest": ">=3.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.30.0",
