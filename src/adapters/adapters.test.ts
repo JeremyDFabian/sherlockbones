@@ -32,7 +32,7 @@ describe("claudeCodeAdapter", () => {
     };
     expect(settings.hooks.PostToolUse).toHaveLength(1);
     expect(settings.hooks.PostToolUse[0]!.matcher).toBe("Edit|Write|MultiEdit");
-    expect(settings.hooks.PostToolUse[0]!.hooks[0]!.command).toBe("npx bones hook");
+    expect(settings.hooks.PostToolUse[0]!.hooks[0]!.command).toBe("npx sherlockbones hook");
   });
 
   it("preserves existing settings and removes only its own hook on uninstall", () => {
@@ -76,7 +76,7 @@ describe("codexAdapter", () => {
       hooks: { PostToolUse: Array<{ matcher: string; hooks: Array<{ command: string }> }> };
     };
     expect(hooksFile.hooks.PostToolUse[0]!.matcher).toBe("apply_patch");
-    expect(hooksFile.hooks.PostToolUse[0]!.hooks[0]!.command).toBe("npx bones hook");
+    expect(hooksFile.hooks.PostToolUse[0]!.hooks[0]!.command).toBe("npx sherlockbones hook");
   });
 });
 
