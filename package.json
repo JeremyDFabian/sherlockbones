@@ -20,6 +20,7 @@
     "dev": "tsx src/cli/index.ts",
     "test": "vitest run",
     "test:watch": "vitest",
+    "bench": "tsx bench/sample-app.ts",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit"
   },
