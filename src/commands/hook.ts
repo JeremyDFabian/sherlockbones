@@ -3,7 +3,8 @@ import type { ProjectContext } from "../cli/context.js";
 import { isSourceFile } from "../project/project.js";
 import type { RunOptions, RunResult } from "./run.js";
 
-const PATCH_FILE_RE = /\*\*\* (?:Update|Add) File: ([^\n"\\]+)/g;
+const PATCH_FILE_RE = /\*\*\* (?:Update|Add|Rename) File: ([^\n"\\]+)/g;
+const PATCH_MOVE_RE = /\*\*\* Move to: ([^\n"\\]+)/g;
 
 function toRelative(root: string, file: string): string {
   const rel = path.isAbsolute(file) ? path.relative(root, file) : file;
@@ -12,8 +13,9 @@ function toRelative(root: string, file: string): string {
 
 /**
  * Pull the edited source files out of an agent's PostToolUse payload. Handles both
- * Claude Code (`tool_input.file_path`) and Codex apply_patch (`*** Update/Add File:`
- * markers in the patch text). Non-source files are dropped.
+ * Claude Code (`tool_input.file_path`) and Codex apply_patch markers
+ * (`*** Update/Add/Rename File:` and `*** Move to:`) in the patch text. A rename
+ * contributes both its old and new paths. Non-source files are dropped.
  */
 export function extractChangedFiles(payload: unknown, root: string): string[] {
   const found = new Set<string>();
@@ -23,8 +25,15 @@ export function extractChangedFiles(payload: unknown, root: string): string[] {
     const filePath = (toolInput as { file_path?: unknown }).file_path;
     if (typeof filePath === "string") found.add(toRelative(root, filePath));
 
-    for (const match of JSON.stringify(toolInput).matchAll(PATCH_FILE_RE)) {
-      if (match[1]) found.add(toRelative(root, match[1].trim()));
+    const patch = JSON.stringify(toolInput);
+    for (const match of patch.matchAll(PATCH_FILE_RE)) {
+      // A rename marker is "old -> new"; record both sides.
+      for (const part of match[1]!.split(/\s*->\s*/)) {
+        found.add(toRelative(root, part.trim()));
+      }
+    }
+    for (const match of patch.matchAll(PATCH_MOVE_RE)) {
+      found.add(toRelative(root, match[1]!.trim()));
     }
   }
 

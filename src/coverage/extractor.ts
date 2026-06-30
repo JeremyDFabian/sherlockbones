@@ -128,7 +128,14 @@ export function foldCoverage(jsonl: string, opts: FoldOptions): CoverageRecord[]
     const trimmed = rawLine.trim();
     if (trimmed === "") continue;
 
-    const record = JSON.parse(trimmed) as RawTestRecord;
+    let record: RawTestRecord;
+    try {
+      record = JSON.parse(trimmed) as RawTestRecord;
+    } catch {
+      // A malformed line (e.g. interleaved concurrent writes) shouldn't lose the
+      // rest of the coverage; skip it.
+      continue;
+    }
     let keys = byTest.get(record.testId);
     if (!keys) {
       keys = new Set<string>();

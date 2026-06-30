@@ -25,6 +25,22 @@ describe("extractChangedFiles", () => {
     expect(extractChangedFiles(payload, root)).toEqual(["src/cart.ts", "src/new.ts"]);
   });
 
+  it("captures both sides of an apply_patch rename", () => {
+    const payload = {
+      tool_name: "apply_patch",
+      tool_input: { input: "*** Rename File: src/old.ts -> src/new.ts\n" },
+    };
+    expect(extractChangedFiles(payload, root)).toEqual(["src/old.ts", "src/new.ts"]);
+  });
+
+  it("captures a Move to destination", () => {
+    const payload = {
+      tool_name: "apply_patch",
+      tool_input: { input: "*** Update File: src/a.ts\n*** Move to: src/b.ts\n" },
+    };
+    expect(extractChangedFiles(payload, root)).toEqual(["src/a.ts", "src/b.ts"]);
+  });
+
   it("de-duplicates and relativizes", () => {
     const payload = {
       tool_input: {

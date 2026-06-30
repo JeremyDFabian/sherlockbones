@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -99,6 +99,15 @@ export class VitestRunner {
       // Vitest exits non-zero when tests fail; the JSON report is still written.
     }
     const durationMs = Date.now() - start;
+
+    if (!existsSync(outFile)) {
+      // Vitest exited before writing the report — usually a startup failure such
+      // as a missing @vitest/coverage-istanbul or an invalid config.
+      throw new Error(
+        `vitest did not produce a test report. It likely failed to start — ` +
+          `check that the config is valid and @vitest/coverage-istanbul is installed.`,
+      );
+    }
 
     const parsed = parseVitestJson(readFileSync(outFile, "utf8"));
     return { ...parsed, durationMs };

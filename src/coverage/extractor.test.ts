@@ -93,6 +93,19 @@ describe("foldCoverage", () => {
     ]);
   });
 
+  it("skips malformed lines instead of aborting the fold", () => {
+    const jsonl = [
+      JSON.stringify({ testId: "t1", files: { "/proj/src/a.ts": [1] } }),
+      "{ this is not valid json",
+      JSON.stringify({ testId: "t2", files: { "/proj/src/b.ts": [2] } }),
+    ].join("\n");
+
+    expect(foldCoverage(jsonl, opts)).toEqual([
+      { testId: "t1", entries: [{ file: "src/a.ts", line: 1 }] },
+      { testId: "t2", entries: [{ file: "src/b.ts", line: 2 }] },
+    ]);
+  });
+
   it("ignores blank lines in the jsonl", () => {
     const jsonl =
       "\n" + JSON.stringify({ testId: "t1", files: { "/proj/src/a.ts": [1] } }) + "\n\n";

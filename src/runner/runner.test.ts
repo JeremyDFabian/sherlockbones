@@ -60,6 +60,14 @@ describe("parseVitestJson", () => {
   });
 });
 
+describe("VitestRunner.run error handling", () => {
+  it("throws a clear error when vitest produces no report", () => {
+    // `false` exits non-zero and writes nothing, simulating a vitest startup crash.
+    const runner = new VitestRunner({ projectRoot: process.cwd(), vitestBin: "false" });
+    expect(() => runner.run([])).toThrow(/did not produce a test report/i);
+  });
+});
+
 describe("VitestRunner.run (integration)", () => {
   it("runs the given test files and parses real results", () => {
     const repoRoot = process.cwd();
