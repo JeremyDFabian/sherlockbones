@@ -17,6 +17,10 @@ export function isTestFile(file: string): boolean {
   return TEST_RE.test(path.basename(file));
 }
 
+export function isSourceFile(file: string): boolean {
+  return SOURCE_EXT.has(path.extname(file));
+}
+
 export function hashContent(content: string): string {
   return createHash("sha1").update(content).digest("hex");
 }
