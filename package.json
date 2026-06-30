@@ -35,6 +35,7 @@
     "dist"
   ],
   "scripts": {
+    "prebuild": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
     "build": "tsc -p tsconfig.build.json",
     "dev": "tsx src/cli/index.ts",
     "test": "vitest run",
@@ -42,7 +43,8 @@
     "bench": "tsx bench/sample-app.ts",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "prepublishOnly": "npm run lint && npm run typecheck && npm run build"
+    "prepare": "npm run build",
+    "prepublishOnly": "npm run lint && npm run typecheck && npm run test"
   },
   "dependencies": {
     "@jridgewell/trace-mapping": "^0.3.31",

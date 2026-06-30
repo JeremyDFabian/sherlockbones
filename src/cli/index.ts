@@ -9,12 +9,16 @@ import { runChanged } from "../commands/run.js";
 import { computeStats, formatStats } from "../commands/stats.js";
 import { openStore, resolveContext } from "./context.js";
 
+const pkg = JSON.parse(
+  readFileSync(new URL("../../package.json", import.meta.url), "utf8"),
+) as { version: string };
+
 const program = new Command();
 
 program
   .name("bones")
   .description("Run only the tests that cover the code you just changed.")
-  .version("0.1.0");
+  .version(pkg.version);
 
 const toInt = (v: string): number => parseInt(v, 10);
 const toFloat = (v: string): number => parseFloat(v);
