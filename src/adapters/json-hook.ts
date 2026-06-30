@@ -1,8 +1,12 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
-/** The command both adapters register; reads the PostToolUse payload on stdin. */
-export const HOOK_COMMAND = "bones hook";
+/**
+ * The command both adapters register; reads the PostToolUse payload on stdin.
+ * Uses `npx` so it resolves a project-local install (not just a global one) and
+ * stays portable across machines when the config is committed.
+ */
+export const HOOK_COMMAND = "npx bones hook";
 
 interface CommandHandler {
   type: "command";
