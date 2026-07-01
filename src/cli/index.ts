@@ -4,6 +4,7 @@ import path from "node:path";
 import { Command } from "commander";
 import { pingDaemon, stopDaemon } from "../daemon/client.js";
 import { runDaemon } from "../daemon/server.js";
+import { calibrate, formatCalibrate } from "../commands/calibrate.js";
 import { handleHook } from "../commands/hook.js";
 import { init } from "../commands/init.js";
 import { rebuildIndex } from "../commands/rebuild.js";
@@ -78,6 +79,15 @@ program
       return;
     }
     process.stdout.write("bones: specify --rebuild or --explain <file>\n");
+  });
+
+program
+  .command("calibrate")
+  .description("Measure failure recall: run the full suite and compare against selection")
+  .option("--changed <files...>", "files to calibrate (default: git diff vs HEAD)")
+  .action(async (opts: { changed?: string[] }) => {
+    const result = await calibrate(resolveContext(), { changed: opts.changed });
+    process.stdout.write(`${formatCalibrate(result)}\n`);
   });
 
 program

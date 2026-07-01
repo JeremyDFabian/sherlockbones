@@ -74,6 +74,22 @@ export function parseDiffHunks(diff: string): number[] {
   return [...lines].sort((a, b) => a - b);
 }
 
+/** Source files changed versus HEAD (uncommitted edits). Empty if git is unavailable. */
+export function changedSourceFiles(root: string): string[] {
+  try {
+    const out = execFileSync("git", ["diff", "--name-only", "HEAD"], {
+      cwd: root,
+      encoding: "utf8",
+    });
+    return out
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line !== "" && isSourceFile(line));
+  } catch {
+    return [];
+  }
+}
+
 /**
  * Lines changed in `file` versus HEAD (uncommitted edits the agent just made).
  * Returns an empty array when git is unavailable or the file is untracked/new — the
