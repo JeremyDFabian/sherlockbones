@@ -121,7 +121,13 @@ program
     }
     const result = handleHook(stdin, resolveContext(), { run: runChanged });
     if (result?.output) process.stderr.write(`${result.output}\n`);
-    process.exit(result?.exitCode ?? 0);
+    // Claude Code only feeds a PostToolUse hook's stderr back to the model when the
+    // hook exits 2 (a "blocking" error); exit 1 is treated as non-blocking and the
+    // agent never sees it. So a failing covering test must exit 2 to reach the agent
+    // for same-turn self-correction — the whole point of the loop. Passing runs and
+    // no-ops exit 0 (silent). Infra errors are thrown and exit 1 via the boundary
+    // below, deliberately non-blocking so a misconfig doesn't nag on every edit.
+    process.exit(result && !result.summary.passed ? 2 : 0);
   });
 
 try {
