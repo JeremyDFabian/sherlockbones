@@ -7,7 +7,7 @@ import { rebuildIndex } from "../commands/rebuild.js";
 import { benchmarkEdit } from "./harness.js";
 
 describe("benchmarkEdit (integration)", () => {
-  it("catches the failures a breaking edit introduces", () => {
+  it("catches the failures a breaking edit introduces", async () => {
     const repoRoot = process.cwd();
     const fixtureDir = path.join(repoRoot, "fixtures/sample-app");
     const ctx: ProjectContext = {
@@ -19,7 +19,7 @@ describe("benchmarkEdit (integration)", () => {
 
     rebuildIndex(ctx);
 
-    const result = benchmarkEdit(ctx, {
+    const result = await benchmarkEdit(ctx, {
       label: "invert discount",
       file: "src/pricing.ts",
       find: "amount - (amount * pct)",

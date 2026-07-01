@@ -18,14 +18,14 @@ function fixtureContext(): ProjectContext {
 }
 
 describe("rebuild + run (integration)", () => {
-  it("rebuilds the index then selects covering tests for a changed file", () => {
+  it("rebuilds the index then selects covering tests for a changed file", async () => {
     const ctx = fixtureContext();
 
     const rebuilt = rebuildIndex(ctx);
     expect(rebuilt.tests).toBe(4);
 
     // pricing.ts is exercised by both pricing tests and the cart discount test.
-    const result = runChanged(ctx, {
+    const result = await runChanged(ctx, {
       changed: ["src/pricing.ts"],
       format: "human",
       budget: {},
@@ -43,11 +43,11 @@ describe("rebuild + run (integration)", () => {
     expect(result.summary.lowConfidence).toBe(false);
   }, 90_000);
 
-  it("maps a cart-only change without pulling in unrelated suites", () => {
+  it("maps a cart-only change without pulling in unrelated suites", async () => {
     const ctx = fixtureContext();
     rebuildIndex(ctx);
 
-    const result = runChanged(ctx, {
+    const result = await runChanged(ctx, {
       changed: ["src/cart.ts"],
       format: "agent",
       budget: {},

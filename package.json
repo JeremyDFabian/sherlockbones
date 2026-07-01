@@ -41,6 +41,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "bench": "tsx bench/sample-app.ts",
+    "bench:daemon": "npm run build && tsx bench/daemon-latency.ts",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "prepare": "npm run build",

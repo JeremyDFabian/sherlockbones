@@ -2,6 +2,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { openStore, type ProjectContext } from "../cli/context.js";
+import { runViaDaemon } from "../daemon/client.js";
 import { format, type FormatMode, type RunSummary } from "../formatter/formatter.js";
 import { ImpactMap } from "../impact/impact-map.js";
 import { ImportGraph } from "../impact/import-graph.js";
@@ -23,6 +24,12 @@ export interface RunOptions {
   changed: string[];
   format: FormatMode;
   budget: Budget;
+  /**
+   * Route the test run through the warm daemon when reachable (falling back to the
+   * cold runner otherwise). Opt-in so library/test callers stay deterministic and
+   * never spawn a daemon; the CLI and hook set it. Warm runs skip coverage folding.
+   */
+  daemon?: boolean;
 }
 
 export interface RunResult {
@@ -48,16 +55,20 @@ function memoize<T>(factory: () => T): () => T {
  * report. Also self-heals — folds the run's own coverage back into the index and
  * refreshes hashes for the changed files.
  */
-export function runChanged(ctx: ProjectContext, opts: RunOptions): RunResult {
+export async function runChanged(ctx: ProjectContext, opts: RunOptions): Promise<RunResult> {
   const store = openStore(ctx);
   try {
-    return runWithStore(store, ctx, opts);
+    return await runWithStore(store, ctx, opts);
   } finally {
     store.close();
   }
 }
 
-function runWithStore(store: Store, ctx: ProjectContext, opts: RunOptions): RunResult {
+async function runWithStore(
+  store: Store,
+  ctx: ProjectContext,
+  opts: RunOptions,
+): Promise<RunResult> {
   // The project scan only happens if a fallback tier actually needs it.
   const loaded = memoize(() => loadProject(ctx.root));
   const impact = new ImpactMap({
@@ -83,31 +94,43 @@ function runWithStore(store: Store, ctx: ProjectContext, opts: RunOptions): RunR
   let passed = true;
   let durationMs = 0;
   if (testFiles.length > 0) {
-    const coverageDir = mkdtempSync(path.join(tmpdir(), "bones-run-"));
-    const coverageOut = path.join(coverageDir, "cov.jsonl");
-    try {
-      const runner = new VitestRunner({
-        projectRoot: ctx.root,
-        vitestBin: ctx.vitestBin,
-        configPath: ctx.configPath,
-        coverageOut,
-        timeoutMs: RUN_TIMEOUT_MS,
-      });
-      const outcome = runner.run(testFiles.map((f) => path.join(ctx.root, f)));
-      results = outcome.results;
-      passed = outcome.passed;
-      durationMs = outcome.durationMs;
+    const absFiles = testFiles.map((f) => path.join(ctx.root, f));
+    const warm = opts.daemon ? await runViaDaemon(ctx.root, absFiles) : null;
 
-      // Self-heal: fold this run's coverage back into the index. We deliberately do
-      // NOT refresh the changed files' source hashes here. An incremental run only
-      // re-executes a subset of a file's covering tests, so the rest keep pre-edit
-      // (line-shifted) mappings; marking the file "fresh" would make isStale() trust
-      // those stale mappings and risk missing a covering test — the cardinal sin.
-      // An edited file therefore stays "stale" (→ recall-safe whole-file widening)
-      // until the next `bones map --rebuild` re-hashes it authoritatively.
-      foldAndStore(store, ctx.root, coverageOut);
-    } finally {
-      rmSync(coverageDir, { recursive: true, force: true });
+    if (warm) {
+      // Warm path: the resident Vitest already produced results. It captures no
+      // coverage (deferred by design), so there's no self-heal fold here — the map
+      // sharpens via `bones map --rebuild`.
+      results = warm.results;
+      passed = warm.passed;
+      durationMs = warm.durationMs;
+    } else {
+      const coverageDir = mkdtempSync(path.join(tmpdir(), "bones-run-"));
+      const coverageOut = path.join(coverageDir, "cov.jsonl");
+      try {
+        const runner = new VitestRunner({
+          projectRoot: ctx.root,
+          vitestBin: ctx.vitestBin,
+          configPath: ctx.configPath,
+          coverageOut,
+          timeoutMs: RUN_TIMEOUT_MS,
+        });
+        const outcome = runner.run(absFiles);
+        results = outcome.results;
+        passed = outcome.passed;
+        durationMs = outcome.durationMs;
+
+        // Self-heal: fold this run's coverage back into the index. We deliberately do
+        // NOT refresh the changed files' source hashes here. An incremental run only
+        // re-executes a subset of a file's covering tests, so the rest keep pre-edit
+        // (line-shifted) mappings; marking the file "fresh" would make isStale() trust
+        // those stale mappings and risk missing a covering test — the cardinal sin.
+        // An edited file therefore stays "stale" (→ recall-safe whole-file widening)
+        // until the next `bones map --rebuild` re-hashes it authoritatively.
+        foldAndStore(store, ctx.root, coverageOut);
+      } finally {
+        rmSync(coverageDir, { recursive: true, force: true });
+      }
     }
   }
 

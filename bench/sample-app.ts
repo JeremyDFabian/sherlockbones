@@ -31,5 +31,5 @@ const edits: EditSpec[] = [
   },
 ];
 
-const results = runBenchmark(ctx, edits);
+const results = await runBenchmark(ctx, edits);
 process.stdout.write(`${formatBench(results)}\n`);
