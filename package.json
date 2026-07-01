@@ -42,6 +42,7 @@
     "test:watch": "vitest",
     "bench": "tsx bench/sample-app.ts",
     "bench:daemon": "npm run build && tsx bench/daemon-latency.ts",
+    "bench:coverage": "npm run build && tsx bench/coverage-overhead.ts",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "prepare": "npm run build",
