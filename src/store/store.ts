@@ -76,6 +76,12 @@ export class Store {
 
   constructor(dbPath: string) {
     this.db = new DatabaseSync(dbPath);
+    // Parallel edits in a single agent turn can fire concurrent PostToolUse hooks
+    // against the same index. WAL lets a reader and a writer coexist, and the busy
+    // timeout makes a second writer wait briefly instead of throwing SQLITE_BUSY.
+    // WAL is unsupported for (and irrelevant to) the in-memory test database.
+    if (dbPath !== ":memory:") this.db.exec("PRAGMA journal_mode = WAL");
+    this.db.exec("PRAGMA busy_timeout = 5000");
     this.db.exec(SCHEMA);
   }
 

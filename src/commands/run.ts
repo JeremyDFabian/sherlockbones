@@ -1,4 +1,4 @@
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { openStore, type ProjectContext } from "../cli/context.js";
@@ -14,7 +14,10 @@ import {
 import { VitestRunner } from "../runner/runner.js";
 import { type Budget, plan } from "../selector/selector.js";
 import type { Store } from "../store/store.js";
-import { foldAndStore, recordSourceHashes } from "./indexing.js";
+import { foldAndStore } from "./indexing.js";
+
+/** Hot-path cap: a per-edit run should never block the loop for longer than this. */
+const RUN_TIMEOUT_MS = 120_000;
 
 export interface RunOptions {
   changed: string[];
@@ -76,29 +79,36 @@ function runWithStore(store: Store, ctx: ProjectContext, opts: RunOptions): RunR
   const planned = plan(selection.tests, opts.budget);
   const testFiles = [...new Set(planned.selected.map((t) => t.file))];
 
-  const coverageOut = path.join(
-    mkdtempSync(path.join(tmpdir(), "bones-run-")),
-    "cov.jsonl",
-  );
-
   let results: RunSummary["results"] = [];
   let passed = true;
   let durationMs = 0;
   if (testFiles.length > 0) {
-    const runner = new VitestRunner({
-      projectRoot: ctx.root,
-      vitestBin: ctx.vitestBin,
-      configPath: ctx.configPath,
-      coverageOut,
-    });
-    const outcome = runner.run(testFiles.map((f) => path.join(ctx.root, f)));
-    results = outcome.results;
-    passed = outcome.passed;
-    durationMs = outcome.durationMs;
+    const coverageDir = mkdtempSync(path.join(tmpdir(), "bones-run-"));
+    const coverageOut = path.join(coverageDir, "cov.jsonl");
+    try {
+      const runner = new VitestRunner({
+        projectRoot: ctx.root,
+        vitestBin: ctx.vitestBin,
+        configPath: ctx.configPath,
+        coverageOut,
+        timeoutMs: RUN_TIMEOUT_MS,
+      });
+      const outcome = runner.run(testFiles.map((f) => path.join(ctx.root, f)));
+      results = outcome.results;
+      passed = outcome.passed;
+      durationMs = outcome.durationMs;
 
-    // Self-heal: fold this run's coverage and refresh the changed files' hashes.
-    foldAndStore(store, ctx.root, coverageOut);
-    recordSourceHashes(store, ctx.root, opts.changed);
+      // Self-heal: fold this run's coverage back into the index. We deliberately do
+      // NOT refresh the changed files' source hashes here. An incremental run only
+      // re-executes a subset of a file's covering tests, so the rest keep pre-edit
+      // (line-shifted) mappings; marking the file "fresh" would make isStale() trust
+      // those stale mappings and risk missing a covering test — the cardinal sin.
+      // An edited file therefore stays "stale" (→ recall-safe whole-file widening)
+      // until the next `bones map --rebuild` re-hashes it authoritatively.
+      foldAndStore(store, ctx.root, coverageOut);
+    } finally {
+      rmSync(coverageDir, { recursive: true, force: true });
+    }
   }
 
   const summary: RunSummary = {

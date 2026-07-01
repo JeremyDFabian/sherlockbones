@@ -14,6 +14,8 @@ export interface InitResult {
   captureConfig: string;
   userConfig?: string;
   indexedTests?: number;
+  /** Set when the optional initial index build failed; init still succeeds. */
+  indexError?: string;
 }
 
 /** Absolute path to the shipped Vitest setup file (dev: .ts, built: .js). */
@@ -79,7 +81,14 @@ export function init(ctx: ProjectContext, opts: { rebuild?: boolean } = {}): Ini
   const result: InitResult = { agents, captureConfig, userConfig };
 
   if (opts.rebuild) {
-    result.indexedTests = rebuildIndex({ ...ctx, configPath: captureConfig }).tests;
+    // Hooks and the capture config are already written; a failing initial build
+    // (e.g. Vitest can't start) shouldn't abort init or crash with a stack trace.
+    // Report it as a warning — the user can retry with `bones map --rebuild`.
+    try {
+      result.indexedTests = rebuildIndex({ ...ctx, configPath: captureConfig }).tests;
+    } catch (err) {
+      result.indexError = err instanceof Error ? err.message : String(err);
+    }
   }
   return result;
 }

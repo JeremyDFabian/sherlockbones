@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -73,6 +73,8 @@ export interface VitestRunnerOptions {
   configPath?: string;
   /** When set, exported as BONES_COVERAGE_OUT so the run also captures coverage. */
   coverageOut?: string;
+  /** Kill Vitest after this many ms so a hung/slow suite can't block the loop. */
+  timeoutMs?: number;
 }
 
 /**
@@ -83,7 +85,8 @@ export class VitestRunner {
   constructor(private readonly options: VitestRunnerOptions) {}
 
   run(testFiles: string[]): RunOutcome {
-    const outFile = path.join(mkdtempSync(path.join(tmpdir(), "bones-run-")), "out.json");
+    const outDir = mkdtempSync(path.join(tmpdir(), "bones-run-"));
+    const outFile = path.join(outDir, "out.json");
     const bin = this.options.vitestBin ?? "vitest";
 
     const args = ["run", ...testFiles, "--reporter=json", `--outputFile=${outFile}`];
@@ -93,23 +96,42 @@ export class VitestRunner {
     if (this.options.coverageOut) env["BONES_COVERAGE_OUT"] = this.options.coverageOut;
 
     const start = Date.now();
+    let timedOut = false;
     try {
-      execFileSync(bin, args, { cwd: this.options.projectRoot, env, stdio: "ignore" });
-    } catch {
-      // Vitest exits non-zero when tests fail; the JSON report is still written.
+      execFileSync(bin, args, {
+        cwd: this.options.projectRoot,
+        env,
+        stdio: "ignore",
+        timeout: this.options.timeoutMs,
+      });
+    } catch (err) {
+      // Vitest exits non-zero when tests fail; the JSON report is still written, so
+      // that's expected. A timeout is different — execFileSync killed the process
+      // (SIGTERM) and the report is likely absent.
+      if ((err as { killed?: boolean }).killed) timedOut = true;
     }
     const durationMs = Date.now() - start;
 
-    if (!existsSync(outFile)) {
-      // Vitest exited before writing the report — usually a startup failure such
-      // as a missing @vitest/coverage-istanbul or an invalid config.
-      throw new Error(
-        `vitest did not produce a test report. It likely failed to start — ` +
-          `check that the config is valid and @vitest/coverage-istanbul is installed.`,
-      );
-    }
+    try {
+      if (!existsSync(outFile)) {
+        if (timedOut) {
+          throw new Error(
+            `vitest timed out after ${this.options.timeoutMs}ms — the selected ` +
+              `tests are too slow or the suite hung.`,
+          );
+        }
+        // Vitest exited before writing the report — usually a startup failure such
+        // as a missing @vitest/coverage-istanbul or an invalid config.
+        throw new Error(
+          `vitest did not produce a test report. It likely failed to start — ` +
+            `check that the config is valid and @vitest/coverage-istanbul is installed.`,
+        );
+      }
 
-    const parsed = parseVitestJson(readFileSync(outFile, "utf8"));
-    return { ...parsed, durationMs };
+      const parsed = parseVitestJson(readFileSync(outFile, "utf8"));
+      return { ...parsed, durationMs };
+    } finally {
+      rmSync(outDir, { recursive: true, force: true });
+    }
   }
 }

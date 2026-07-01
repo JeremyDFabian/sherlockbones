@@ -21,7 +21,6 @@ program
   .version(pkg.version);
 
 const toInt = (v: string): number => parseInt(v, 10);
-const toFloat = (v: string): number => parseFloat(v);
 
 program
   .command("run")
@@ -29,18 +28,16 @@ program
   .requiredOption("--changed <files...>", "changed files (project-relative)")
   .option("--format <mode>", "output format: agent | human", "human")
   .option("--budget-tests <n>", "maximum tests to run", toInt)
-  .option("--budget-secs <t>", "maximum estimated seconds", toFloat)
   .action((opts: {
     changed: string[];
     format: string;
     budgetTests?: number;
-    budgetSecs?: number;
   }) => {
     const mode = opts.format === "agent" ? "agent" : "human";
     const result = runChanged(resolveContext(), {
       changed: opts.changed,
       format: mode,
-      budget: { maxTests: opts.budgetTests, maxSeconds: opts.budgetSecs },
+      budget: { maxTests: opts.budgetTests },
     });
     if (result.output) {
       const stream = mode === "agent" ? process.stderr : process.stdout;
@@ -103,6 +100,12 @@ program
     if (result.indexedTests !== undefined) {
       process.stdout.write(`bones: indexed ${result.indexedTests} tests\n`);
     }
+    if (result.indexError !== undefined) {
+      process.stderr.write(
+        `bones: initial index build failed (${result.indexError})\n` +
+          `bones: hooks are installed — run \`bones map --rebuild\` once it's fixed.\n`,
+      );
+    }
   });
 
 program
@@ -121,4 +124,12 @@ program
     process.exit(result?.exitCode ?? 0);
   });
 
-await program.parseAsync();
+try {
+  await program.parseAsync();
+} catch (err) {
+  // Turn engine failures (Vitest can't start, timeout, bad config) into a concise
+  // one-line diagnostic instead of a raw Node stack trace — for humans and for the
+  // agent hook, whose stderr this becomes.
+  process.stderr.write(`bones: ${err instanceof Error ? err.message : String(err)}\n`);
+  process.exit(1);
+}

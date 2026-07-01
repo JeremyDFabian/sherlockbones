@@ -51,4 +51,19 @@ describe("init", () => {
     expect(capture).toContain("vitest.config.ts");
     expect(capture).toContain('provider: "istanbul"');
   });
+
+  it("survives a failing initial index build and reports it as a warning", () => {
+    const root = tempProject();
+    mkdirSync(path.join(root, ".claude"));
+    // A bogus vitest binary makes the rebuild throw; init must still succeed with
+    // hooks installed and surface the failure via indexError rather than crashing.
+    const ctx = { ...ctxFor(root), vitestBin: "/nonexistent/bones-no-vitest" };
+
+    const result = init(ctx, { rebuild: true });
+
+    expect(result.agents).toEqual(["Claude Code"]);
+    expect(result.indexedTests).toBeUndefined();
+    expect(result.indexError).toMatch(/vitest/i);
+    expect(existsSync(path.join(root, ".claude", "settings.json"))).toBe(true);
+  });
 });
