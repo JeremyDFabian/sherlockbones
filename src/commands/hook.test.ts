@@ -53,33 +53,34 @@ describe("extractChangedFiles", () => {
 });
 
 describe("handleHook", () => {
-  it("runs the changed files in agent format", () => {
+  it("runs the changed files in agent format", async () => {
     const run = vi.fn().mockReturnValue({ output: "ok", exitCode: 0, summary: {} });
     const ctx = { root, dbPath: "", vitestBin: "vitest" };
     const payload = JSON.stringify({ tool_input: { file_path: "/p/src/cart.ts" } });
 
-    const result = handleHook(payload, ctx, { run });
+    const result = await handleHook(payload, ctx, { run });
     expect(run).toHaveBeenCalledWith(ctx, {
       changed: ["src/cart.ts"],
       format: "agent",
       budget: {},
+      daemon: true,
     });
     expect(result?.exitCode).toBe(0);
   });
 
-  it("is a quiet no-op when no source files changed", () => {
+  it("is a quiet no-op when no source files changed", async () => {
     const run = vi.fn();
     const ctx = { root, dbPath: "", vitestBin: "vitest" };
     const payload = JSON.stringify({ tool_input: { file_path: "/p/notes.md" } });
 
-    expect(handleHook(payload, ctx, { run })).toBeNull();
+    expect(await handleHook(payload, ctx, { run })).toBeNull();
     expect(run).not.toHaveBeenCalled();
   });
 
-  it("is a quiet no-op on unparseable input", () => {
+  it("is a quiet no-op on unparseable input", async () => {
     const run = vi.fn();
     const ctx = { root, dbPath: "", vitestBin: "vitest" };
-    expect(handleHook("not json", ctx, { run })).toBeNull();
+    expect(await handleHook("not json", ctx, { run })).toBeNull();
     expect(run).not.toHaveBeenCalled();
   });
 });

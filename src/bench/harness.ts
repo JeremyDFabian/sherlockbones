@@ -27,7 +27,7 @@ function failedIds(results: TestResult[]): string[] {
  * the whole suite for ground truth, then restore the file. Reports which failures
  * the selection caught versus what the full suite found.
  */
-export function benchmarkEdit(ctx: ProjectContext, spec: EditSpec): EditResult {
+export async function benchmarkEdit(ctx: ProjectContext, spec: EditSpec): Promise<EditResult> {
   const abs = path.join(ctx.root, spec.file);
   const original = readFileSync(abs, "utf8");
   const mutated = original.replace(spec.find, spec.replace);
@@ -38,7 +38,7 @@ export function benchmarkEdit(ctx: ProjectContext, spec: EditSpec): EditResult {
   try {
     writeFileSync(abs, mutated);
 
-    const selected = runChanged(ctx, {
+    const selected = await runChanged(ctx, {
       changed: [spec.file],
       format: "agent",
       budget: {},
@@ -67,11 +67,16 @@ export function benchmarkEdit(ctx: ProjectContext, spec: EditSpec): EditResult {
 }
 
 /** Rebuild the index and benchmark each edit independently. */
-export function runBenchmark(ctx: ProjectContext, specs: EditSpec[]): EditResult[] {
-  return specs.map((spec) => {
+export async function runBenchmark(
+  ctx: ProjectContext,
+  specs: EditSpec[],
+): Promise<EditResult[]> {
+  const results: EditResult[] = [];
+  for (const spec of specs) {
     rebuildIndex(ctx);
-    return benchmarkEdit(ctx, spec);
-  });
+    results.push(await benchmarkEdit(ctx, spec));
+  }
+  return results;
 }
 
 export function formatBench(results: EditResult[]): string {

@@ -2,6 +2,8 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { Command } from "commander";
+import { pingDaemon, stopDaemon } from "../daemon/client.js";
+import { runDaemon } from "../daemon/server.js";
 import { handleHook } from "../commands/hook.js";
 import { init } from "../commands/init.js";
 import { rebuildIndex } from "../commands/rebuild.js";
@@ -28,16 +30,19 @@ program
   .requiredOption("--changed <files...>", "changed files (project-relative)")
   .option("--format <mode>", "output format: agent | human", "human")
   .option("--budget-tests <n>", "maximum tests to run", toInt)
-  .action((opts: {
+  .option("--no-daemon", "bypass the warm daemon and run cold")
+  .action(async (opts: {
     changed: string[];
     format: string;
     budgetTests?: number;
+    daemon?: boolean;
   }) => {
     const mode = opts.format === "agent" ? "agent" : "human";
-    const result = runChanged(resolveContext(), {
+    const result = await runChanged(resolveContext(), {
       changed: opts.changed,
       format: mode,
       budget: { maxTests: opts.budgetTests },
+      daemon: opts.daemon !== false,
     });
     if (result.output) {
       const stream = mode === "agent" ? process.stderr : process.stdout;
@@ -109,17 +114,37 @@ program
   });
 
 program
+  .command("daemon")
+  .description("Run the warm-Vitest daemon (started automatically by run/hook)")
+  .option("--status", "report whether a daemon is running")
+  .option("--stop", "stop a running daemon")
+  .action(async (opts: { status?: boolean; stop?: boolean }) => {
+    const ctx = resolveContext();
+    if (opts.status) {
+      const up = await pingDaemon(ctx.root);
+      process.stdout.write(`bones: daemon ${up ? "running" : "not running"}\n`);
+      return;
+    }
+    if (opts.stop) {
+      const stopped = await stopDaemon(ctx.root);
+      process.stdout.write(`bones: ${stopped ? "daemon stopped" : "no daemon running"}\n`);
+      return;
+    }
+    await runDaemon({ root: ctx.root });
+  });
+
+program
   .command("hook")
   .description("Run as an agent PostToolUse hook (reads the payload on stdin)")
   .argument("[agent]", "agent id (informational)")
-  .action(() => {
+  .action(async () => {
     let stdin = "";
     try {
       stdin = readFileSync(0, "utf8");
     } catch {
       stdin = "";
     }
-    const result = handleHook(stdin, resolveContext(), { run: runChanged });
+    const result = await handleHook(stdin, resolveContext(), { run: runChanged });
     if (result?.output) process.stderr.write(`${result.output}\n`);
     // Claude Code only feeds a PostToolUse hook's stderr back to the model when the
     // hook exits 2 (a "blocking" error); exit 1 is treated as non-blocking and the

@@ -41,7 +41,7 @@ export function extractChangedFiles(payload: unknown, root: string): string[] {
 }
 
 export interface HookDeps {
-  run: (ctx: ProjectContext, opts: RunOptions) => RunResult;
+  run: (ctx: ProjectContext, opts: RunOptions) => RunResult | Promise<RunResult>;
 }
 
 /**
@@ -49,11 +49,11 @@ export interface HookDeps {
  * run the affected tests in agent format, and return the result. Returns null
  * (a quiet no-op) when the payload is unparseable or touches no source files.
  */
-export function handleHook(
+export async function handleHook(
   rawStdin: string,
   ctx: ProjectContext,
   deps: HookDeps,
-): RunResult | null {
+): Promise<RunResult | null> {
   let payload: unknown;
   try {
     payload = JSON.parse(rawStdin);
@@ -64,5 +64,5 @@ export function handleHook(
   const changed = extractChangedFiles(payload, ctx.root);
   if (changed.length === 0) return null;
 
-  return deps.run(ctx, { changed, format: "agent", budget: {} });
+  return deps.run(ctx, { changed, format: "agent", budget: {}, daemon: true });
 }
