@@ -5,3 +5,7 @@ dist/
 *.log
 *.tsbuildinfo
 .DS_Store
+
+# Internal design notes — not for the public repo
+docs/
+sherlockbones-SPEC.md
